@@ -222,6 +222,7 @@ CEDAR_JPEG_HANDLE cedarInitJpeg(EGLDisplay disp)
 	jpeg = (struct cedarJpeg_handle*)malloc (sizeof (*jpeg));
 	if( jpeg )
 	{
+		memset(jpeg, 0, sizeof(*jpeg));
         	jpeg->in_fd = -1; 
 	        jpeg->disp_fd = -1;
         	if(ump_open() != UMP_OK)
@@ -384,6 +385,24 @@ int cedarDestroyJpeg(CEDAR_JPEG_HANDLE handle)
 	free(jpeg);
 	return 1;
 }
+int cedarGetOrientation(CEDAR_JPEG_HANDLE handle)
+{
+	struct cedarJpeg_handle *jpeg = (struct cedarJpeg_handle *)handle;
+	return jpeg->jpeg.orientation;
+}
+int cedarGetWidth(CEDAR_JPEG_HANDLE handle)
+{
+	struct cedarJpeg_handle *jpeg = (struct cedarJpeg_handle *)handle;
+	return jpeg->jpeg.width;
+}
+int cedarGetHeight(CEDAR_JPEG_HANDLE handle)
+{
+	struct cedarJpeg_handle *jpeg = (struct cedarJpeg_handle *)handle;
+	return jpeg->jpeg.height;
+}
+
+
+
 #if 1
 static void vedisp_init(struct cedarJpeg_handle *jpeg)
 {

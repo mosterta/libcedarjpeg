@@ -21,6 +21,9 @@ EXPORT int cedarDecodeJpegToMem(CEDAR_JPEG_HANDLE handle, int width, int height,
 EXPORT int cedarCloseJpeg (CEDAR_JPEG_HANDLE handle);
 EXPORT int cedarDestroyJpeg(CEDAR_JPEG_HANDLE handle);
 EXPORT void cedarGetEglImage(CEDAR_JPEG_HANDLE, void **egl_image);
+EXPORT int cedarGetOrientation(CEDAR_JPEG_HANDLE);
+EXPORT int cedarGetWidth(CEDAR_JPEG_HANDLE);
+EXPORT int cedarGetHeight(CEDAR_JPEG_HANDLE);
 #if __cplusplus
 }
 #endif
