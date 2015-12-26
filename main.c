@@ -339,17 +339,16 @@ int cedarDecodeJpegToMem(CEDAR_JPEG_HANDLE handle, int width, int height, char *
 void cedarGetEglImage(CEDAR_JPEG_HANDLE handle, void **egl_image)
 {
 	struct cedarJpeg_handle *jpeg = (struct cedarJpeg_handle *)handle;
-	fbdev_pixmap pixmap;
 	const EGLint renderImageAttrs[] = {
 	    EGL_IMAGE_PRESERVED_KHR, EGL_FALSE, 
 	    EGL_NONE
 	};
  
-	createTexture2D(&pixmap, jpeg->disp_width, jpeg->disp_height, jpeg->decodedPic);
+	createTexture2D(&jpeg->pixmap, jpeg->disp_width, jpeg->disp_height, jpeg->decodedPic);
 	jpeg->egl_image = jpeg->peglCreateImageKHR(jpeg->eglDisplay,
 			  EGL_NO_CONTEXT,  
 			  EGL_NATIVE_PIXMAP_KHR,
-			  &pixmap,
+			  &jpeg->pixmap,
 			  renderImageAttrs);
 	TestEGLError("peglCreateImageKHR");
 

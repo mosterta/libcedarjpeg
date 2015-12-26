@@ -23,6 +23,8 @@
 #ifndef __JPEG_H__
 #define __JPEG_H__
 
+#include <EGL/eglplatform_fb.h>
+#include <EGL/fbdev_window.h>  
 #include "cedarJpegLib.h"
 #include "ve.h"
 
@@ -70,6 +72,7 @@ struct cedarJpeg_handle
 	uint16_t disp_width;
 	uint16_t disp_height;
 	EGLDisplay eglDisplay;
+	fbdev_pixmap pixmap;
 	PFNEGLCREATEIMAGEKHRPROC peglCreateImageKHR;
 	PFNEGLDESTROYIMAGEKHRPROC peglDestroyImageKHR;
 };
