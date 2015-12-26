@@ -1,0 +1,36 @@
+This code is based on cedrus PoC Jpeg HW decoding
+It has been extended by some additional functiionality to use it as a library 
+(mainly for Kodi), but of course can be used for other programs as well
+The main concept behind the library is to provide the decoded data either
+as an RGB single combined plane in an continous memory block provided
+by the user of the library or provide the image as an EGL image for the
+Mali binary EGL library implementation from ARM (r3p1)
+
+Requirements: This implementation requires the library libcedar_access, which 
+encapsulates and controls the access to the cedar device, while this library concentrates
+to decode the jpeg header, extract the required data and program the cedar
+HW registers appropriately.
+
+
+The following is the original comment provided by cedrus. It is no longer valid,
+e.g. it does not output an .ppm image anymore
+
+Proof of Concept JPEG decoder using Allwinners CedarX
+=====================================================
+
+*WARNING*: Don't use on "production systems". This was made by reverse
+engineering and might crash your system or destroy data!
+It was made only for my personal use of testing the reverse engineered
+things, so don't expect good code quality. It's far from complete and
+might crash if the JPEG doesn't fit it's requirements!
+
+Usage:
+------
+
+make
+./jpeg-test example.jpg
+
+If everything works, output is .ppm (Portable Pixmap).
+You might pipe it into ImageMagick:
+
+./jpeg-test example.jpg | display -
