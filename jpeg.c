@@ -104,6 +104,33 @@ static int process_dht(struct jpeg_t *jpeg, const uint8_t *data, const int len)
 	}
 	return 1;
 }
+static int process_sof0(struct jpeg_t *jpeg, const uint8_t *data, const int len)
+{
+  int i;
+  int pos = 0;
+  
+  jpeg->bits = data[pos];
+  jpeg->width = ((uint16_t)data[pos + 3]) << 8 | (uint16_t)data[pos + 4];
+  jpeg->height = ((uint16_t)data[pos + 1]) << 8 | (uint16_t)data[pos + 2];
+  for (i = 0; i < data[pos + 5]; i++)
+  {
+    uint8_t id = data[pos + 6 + 3 * i] - 1;
+    if (id > 2)
+    {
+      fprintf(stderr, "only YCbCr supported\n");
+      return 0;
+    }
+    jpeg->comp[id].samp_h = data[pos + 7 + 3 * i] >> 4;
+    jpeg->comp[id].samp_v = data[pos + 7 + 3 * i] & 0x0f;
+    jpeg->comp[id].qt = data[pos + 8 + 3 * i];
+    if( id == 0 )
+    {
+      jpeg->color_format = (jpeg->comp[0].samp_h << 4) | jpeg->comp[0].samp_v;
+
+    }
+  }
+  return 1;
+}
 
 static int process_exif(struct jpeg_t *jpeg, const uint8_t *data, const int len)
 {
@@ -222,7 +249,7 @@ static int process_exif(struct jpeg_t *jpeg, const uint8_t *data, const int len)
 int parse_jpeg(struct cedarJpeg_handle *jpeg, const uint8_t *data, const int len)
 {
 	if (len < 2 || data[0] != 0xff || data[1] != M_SOI)
-		return 0;
+		return -1;
 
 	int pos = 2;
 	int sos = 0;
@@ -234,49 +261,32 @@ int parse_jpeg(struct cedarJpeg_handle *jpeg, const uint8_t *data, const int len
 			pos++;
 
 		if (!(pos + 2 < len))
-			return 0;
+			return -2;
 
 		uint8_t marker = data[pos++];
 		uint16_t seg_len = ((uint16_t)data[pos]) << 8 | (uint16_t)data[pos + 1];
 
 		if (!(pos + seg_len < len))
-			return 0;
+			return -3;
 
 		switch (marker)
 		{
 		case M_DQT:
 			if (!process_dqt(&jpeg->jpeg, &data[pos + 2], seg_len - 2))
-				return 0;
+				return -4;
 
 			break;
 
 		case M_DHT:
 			if (!process_dht(&jpeg->jpeg, &data[pos + 2], seg_len - 2))
-				return 0;
+				return -5;
 
 			break;
 
 		case M_SOF0:
-			jpeg->jpeg.bits = data[pos + 2];
-			jpeg->jpeg.width = ((uint16_t)data[pos + 5]) << 8 | (uint16_t)data[pos + 6];
-			jpeg->jpeg.height = ((uint16_t)data[pos + 3]) << 8 | (uint16_t)data[pos + 4];
-			for (i = 0; i < data[pos + 7]; i++)
-			{
-				uint8_t id = data[pos + 8 + 3 * i] - 1;
-				if (id > 2)
-				{
-					fprintf(stderr, "only YCbCr supported\n");
-					return 0;
-				}
-				jpeg->jpeg.comp[id].samp_h = data[pos + 9 + 3 * i] >> 4;
-				jpeg->jpeg.comp[id].samp_v = data[pos + 9 + 3 * i] & 0x0f;
-				jpeg->jpeg.comp[id].qt = data[pos + 10 + 3 * i];
-                                if( id == 0 )
-                                {
-                                   jpeg->jpeg.color_format = (jpeg->jpeg.comp[0].samp_h << 4) | jpeg->jpeg.comp[0].samp_v;
-
-                                }
-			}
+            if (!process_sof0(&jpeg->jpeg, &data[pos +2], seg_len -2))
+                return -6;
+            break;
 			break;
 
 		case M_DRI:
@@ -290,7 +300,7 @@ int parse_jpeg(struct cedarJpeg_handle *jpeg, const uint8_t *data, const int len
 				if (id > 2)
 				{
 					fprintf(stderr, "only YCbCr supported\n");
-					return 0;
+					return -7;
 				}
 				jpeg->jpeg.comp[id].ht_dc = data[pos + 4 + 2 * i] >> 4;
 				jpeg->jpeg.comp[id].ht_ac = data[pos + 4 + 2 * i] & 0x0f;
@@ -300,11 +310,16 @@ int parse_jpeg(struct cedarJpeg_handle *jpeg, const uint8_t *data, const int len
 
 		case M_DAC:
 			fprintf(stderr, "Arithmetic Coding unsupported\n");
-			return 0;
+			return -8;
 
-		case M_SOF1:
 		case M_SOF2:
-		case M_SOF3:
+          fprintf(stderr, "only Baseline DCT supported (yet?), marker %d not supported\n", marker);
+          //if (!process_sof0(&jpeg->jpeg, &data[pos +2], seg_len -2))
+            return -6;
+          break;
+          
+        case M_SOF1:
+        case M_SOF3:
 		case M_SOF5:
 		case M_SOF6:
 		case M_SOF7:
@@ -314,17 +329,17 @@ int parse_jpeg(struct cedarJpeg_handle *jpeg, const uint8_t *data, const int len
 		case M_SOF13:
 		case M_SOF14:
 		case M_SOF15:
-			fprintf(stderr, "only Baseline DCT supported (yet?)\n");
-			return 0;
+			fprintf(stderr, "only Baseline DCT supported (yet?), marker %d not supported\n", marker);
+			return -9;
 
 		case M_SOI:
 		case M_EOI:
 			fprintf(stderr, "corrupted file\n");
-			return 0;
+			return -10;
 
 		case M_APP1:
 			if(!process_exif(&jpeg->jpeg, &data[pos + 2], seg_len - 2))
-				return 0;
+				; //return -11;
 			break;
 
 		default:

@@ -80,7 +80,7 @@ static void set_quantization_tables(struct jpeg_t *jpeg, void *regs)
 static void set_huffman_tables(struct jpeg_t *jpeg, void *regs)
 {
 	uint32_t buffer[512];
-	memset(buffer, 0, 4*512);
+	memset(buffer, 0, sizeof(buffer));
 	int i;
 	for (i = 0; i < 4; i++)
 	{
@@ -141,8 +141,14 @@ static void set_format(struct jpeg_t *jpeg, void *regs)
 
 static void set_size(struct jpeg_t *jpeg, void *regs)
 {
-	uint16_t h = (jpeg->height - 1) / (8 * jpeg->comp[0].samp_v);
-	uint16_t w = (jpeg->width - 1) / (8 * jpeg->comp[0].samp_h);
+    uint16_t width = jpeg->width;
+    uint16_t height = jpeg->height;
+    if(width > 0)
+      width--;
+    if(height > 0)
+      height--;
+	uint16_t h = (jpeg->height-1) / (8 * jpeg->comp[0].samp_v);
+	uint16_t w = (jpeg->width-1) / (8 * jpeg->comp[0].samp_h);
 	writel((uint32_t)h << 16 | w, regs + CEDARV_MPEG_JPEG_SIZE);
 }
 
@@ -191,7 +197,7 @@ static void decode_jpeg(struct cedarJpeg_handle *handle, int width, int height)
 	writel(handle->data_len * 8, cedarv_regs + CEDARV_MPEG_VLD_LEN);
 
 	// set input buffer
-	writel(cedarv_virt2phys(input_buffer) | 0x70000000, cedarv_regs + CEDARV_MPEG_VLD_ADDR);
+    writel(cedarv_virt2phys(input_buffer) | 0x70000000, cedarv_regs + CEDARV_MPEG_VLD_ADDR);
 
 	// set Quantisation Table
 	set_quantization_tables(&handle->jpeg, cedarv_regs);
@@ -208,6 +214,27 @@ static void decode_jpeg(struct cedarJpeg_handle *handle, int width, int height)
 
 	// clean interrupt flag (??)
 	writel(0x0000c00f, cedarv_regs + CEDARV_MPEG_STATUS);
+
+#if 0
+    printf("MCU value is=%d\n", readl(cedarv_regs + CEDARV_MPEG_JPEG_MCU));
+    printf("MCU start value is=%d\n", readl(cedarv_regs + CEDARV_MPEG_JPEG_MCU_START));
+    printf("MCU end value is=%d\n", readl(cedarv_regs + CEDARV_MPEG_JPEG_MCU_END));
+    int offset = readl(cedarv_regs + CEDARV_MPEG_VLD_OFFSET);
+    printf("error is=%X\n", readl(cedarv_regs + CEDARV_MPEG_ERROR));
+    printf("VLD offset is=%d length=%d\n", offset, input_size*8);
+    offset=((offset/8+1)&~0x1) - 1;
+    
+    printf("data[%X]=0x%02X%02X%02X%02X\n", offset,
+           handle->data[(offset)],
+           handle->data[(offset)+1],
+           handle->data[(offset)+2],
+           handle->data[(offset)+3]);
+    printf("data[%X]=0x%02X%02X%02X%02X\n", (offset/8)+4,
+           handle->data[(offset)+4],
+           handle->data[(offset)+5],
+           handle->data[(offset)+6],
+           handle->data[(offset)+7]);
+#endif
 
 	// stop MPEG engine
 	cedarv_put();
@@ -251,6 +278,7 @@ int cedarLoadJpeg(CEDAR_JPEG_HANDLE handle, const char *filename)
 {
 	struct stat s;
 	struct cedarJpeg_handle *jpeg = (struct cedarJpeg_handle *)handle;
+    int error;
 
 	if ((jpeg->in_fd = open(filename, O_RDONLY)) == -1)
 		err(EXIT_FAILURE, "%s", filename);
@@ -268,26 +296,34 @@ int cedarLoadJpeg(CEDAR_JPEG_HANDLE handle, const char *filename)
 	jpeg->in_mapped = 1;
 
 	//memset(jpeg, 0, sizeof(*jpeg));
-	if (!parse_jpeg(jpeg, jpeg->in_buf, s.st_size))
-		warnx("Can't parse JPEG");
+
+    error = parse_jpeg(jpeg, jpeg->in_buf, jpeg->in_size);
+    if (error <= 0)
+      warnx("Can't parse JPEG, error=%d", error);
 	return 1;
 
 }
 int cedarLoadMem(CEDAR_JPEG_HANDLE handle, uint8_t *buf, size_t size)
 {
-	struct cedarJpeg_handle *jpeg = (struct cedarJpeg_handle *)handle;
+    int error;
+    struct cedarJpeg_handle *jpeg = (struct cedarJpeg_handle *)handle;
 	jpeg->in_buf = buf;
 	jpeg->in_size = size;
 	jpeg->in_mapped = 0;
-
-	if (!parse_jpeg(jpeg, jpeg->in_buf, jpeg->in_size))
-		warnx("Can't parse JPEG");
+    
+    error = parse_jpeg(jpeg, jpeg->in_buf, jpeg->in_size);
+	if (error <= 0)
+    {
+		warnx("Can't parse JPEG, error=%d", error);
+        return 0;
+    }
 	return 1;
 }
 
 int cedarDecodeJpeg(CEDAR_JPEG_HANDLE handle, int width, int height)
 {
-	struct cedarJpeg_handle *jpeg = (struct cedarJpeg_handle *)handle;
+	int status;
+    struct cedarJpeg_handle *jpeg = (struct cedarJpeg_handle *)handle;
 
         width = (width + 15) & ~15;
 	height = (height + 15) & ~15;
@@ -319,12 +355,12 @@ int cedarDecodeJpeg(CEDAR_JPEG_HANDLE handle, int width, int height)
 		color = COLOR_YUV420;
 		break;
 	}
-	vedisp_convertMb2Yuv420(jpeg, width, height, color, jpeg->luma_output, 
+	status = vedisp_convertMb2Yuv420(jpeg, width, height, color, jpeg->luma_output, 
 				jpeg->chroma_output, jpeg->decodedPic);
 	vedisp_close(jpeg);
 	cedarv_free(jpeg->luma_output);
 	cedarv_free(jpeg->chroma_output);
-	return 1;
+	return status;
 }
 
 int cedarDecodeJpegToMem(CEDAR_JPEG_HANDLE handle, int width, int height, char *mem)
@@ -418,7 +454,8 @@ static void vedisp_close(struct cedarJpeg_handle *jpeg)
 static int vedisp_convertMb2Yuv420(struct cedarJpeg_handle *jpeg, int width, int height, int color_format, 
                             CEDARV_MEMORY l, CEDARV_MEMORY c, CEDARV_MEMORY outrgb)
 {
-   unsigned long arg[4] = {0, 0, 0, 0};
+  int status = 1; 
+  unsigned long arg[4] = {0, 0, 0, 0};
    __disp_scaler_para_t scaler_para;
    int result; 
    arg[1] = ioctl(jpeg->disp_fd, DISP_CMD_SCALER_REQUEST, (unsigned long) arg);
@@ -461,9 +498,12 @@ static int vedisp_convertMb2Yuv420(struct cedarJpeg_handle *jpeg, int width, int
    arg[2] = (unsigned long) &scaler_para;
    result = ioctl(jpeg->disp_fd, DISP_CMD_SCALER_EXECUTE, (unsigned long) arg);
    if(result < 0)
-      printf("scaler execution failed=%d\n", errno);
+   {
+      //printf("scaler execution failed=%d\n", errno);
+     status = 0;
+   }
    ioctl(jpeg->disp_fd, DISP_CMD_SCALER_RELEASE, (unsigned long) arg);
-   return 1;
+   return status;
 }
 #endif
 
@@ -476,13 +516,15 @@ int main(const int argc, const char **argv)
 	jpeg.in_fd = -1;
 	jpeg.disp_fd = -1;
 
+    cedarv_open();
 	cedarLoadJpeg(&jpeg, argv[1]);
 	int width = 800;
 	int height = 600;
 	cedarDecodeJpeg(&jpeg, width, height);
 	cedarCloseJpeg(&jpeg);
 	cedarDestroyJpeg(&jpeg);
-	return 0;
+	cedarv_close();
+    return 0;
 }
 #endif
 

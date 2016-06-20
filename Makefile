@@ -32,6 +32,18 @@ $(TARGET_SO): $(OBJ_SO)
 	@echo "LD $(TARGET_SO)"
 	$(Q)g++ $(LDFLAGS_SO) $(OBJ_SO) -o $@
 
+install: $(TARGET_SO) 
+	@echo "installing $(TARGET_SO) to /usr/lib"
+	cp $(TARGET_SO) /usr/lib
+	@echo "installing cedarJpegLib.h to /usr/include"
+	cp cedarJpegLib.h /usr/include
+
+uninstall:
+	@echo "removing $(TARGET_SO)"
+	rm -f /usr/lib/$(TARGET_SO) 2>&1 > /dev/null
+	@echo "removing /usr/include/cedarJpegLib.h"
+	rm -f /usr/include/cedarJpegLib.h 2>&1 > /dev/null
+
 .PHONY: clean
 clean:
 	@echo "RM *.o"
