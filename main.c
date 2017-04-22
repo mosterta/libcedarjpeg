@@ -325,7 +325,11 @@ int cedarDecodeJpeg(CEDAR_JPEG_HANDLE handle, int width, int height)
 	int status;
     struct cedarJpeg_handle *jpeg = (struct cedarJpeg_handle *)handle;
 
-        width = (width + 15) & ~15;
+    if(!cedarv_allocateEngine(0))
+    {
+      return 0;
+    }
+    width = (width + 15) & ~15;
 	height = (height + 15) & ~15;
 	jpeg->disp_width = width;
 	jpeg->disp_height = height;
@@ -340,7 +344,9 @@ int cedarDecodeJpeg(CEDAR_JPEG_HANDLE handle, int width, int height)
 	assert(cedarv_isValid(jpeg->decodedPic));
 	cedarv_flush_cache(jpeg->decodedPic, size);
 	decode_jpeg(jpeg, width, height);
-
+    
+    cedarv_freeEngine();
+    
 	vedisp_init(jpeg);
 	int color;
 	switch (jpeg->jpeg.color_format)
@@ -357,6 +363,24 @@ int cedarDecodeJpeg(CEDAR_JPEG_HANDLE handle, int width, int height)
 	}
 	status = vedisp_convertMb2Yuv420(jpeg, width, height, color, jpeg->luma_output, 
 				jpeg->chroma_output, jpeg->decodedPic);
+    if(status == 0)
+    {
+      void *y = malloc(cedarv_getSize(jpeg->luma_output));
+      void *c = malloc(cedarv_getSize(jpeg->chroma_output));
+      if(y && c)
+      {
+        cedarv_sw_convertMb32420ToNv21Y(cedarv_getPointer(jpeg->luma_output), y, width, height);
+        cedarv_sw_convertMb32420ToNv21C(cedarv_getPointer(jpeg->chroma_output), y, width, height);
+      }
+      else
+      {
+        if(y)
+          free(y);
+        if(c)
+          free(c);
+      }
+    }
+    
 	vedisp_close(jpeg);
 	cedarv_free(jpeg->luma_output);
 	cedarv_free(jpeg->chroma_output);
@@ -367,8 +391,9 @@ int cedarDecodeJpegToMem(CEDAR_JPEG_HANDLE handle, int width, int height, char *
 {
 	int ret;
 	struct cedarJpeg_handle *jpeg = (struct cedarJpeg_handle *)handle;
-	ret = cedarDecodeJpeg(&jpeg->jpeg, width, height);
-	memcpy(mem, cedarv_getPointer(jpeg->decodedPic), width*height*4);
+	ret = cedarDecodeJpeg(handle, width, height);
+    if(ret)
+	  memcpy(mem, cedarv_getPointer(jpeg->decodedPic), width*height*4);
 	return ret;
 }
 

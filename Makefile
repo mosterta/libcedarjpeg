@@ -26,11 +26,11 @@ all: $(TARGET) $(TARGET_SO)
 
 $(TARGET): $(OBJ)
 	@echo "LD $(TARGET)"
-	$(Q)g++ $(LDFLAGS) $(OBJ) -o $@
+	$(Q)g++ $(LDFLAGS) $(OBJ) $(LIBS) -o $@
 
 $(TARGET_SO): $(OBJ_SO)
 	@echo "LD $(TARGET_SO)"
-	$(Q)g++ $(LDFLAGS_SO) $(OBJ_SO) -o $@
+	$(Q)g++ $(LDFLAGS_SO) $(OBJ_SO) $(LIBS) -o $@
 
 install: $(TARGET_SO) 
 	@echo "installing $(TARGET_SO) to /usr/lib"

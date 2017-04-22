@@ -24,6 +24,9 @@ DLL_EXPORT void cedarGetEglImage(CEDAR_JPEG_HANDLE, void **egl_image);
 DLL_EXPORT int cedarGetOrientation(CEDAR_JPEG_HANDLE);
 DLL_EXPORT int cedarGetWidth(CEDAR_JPEG_HANDLE);
 DLL_EXPORT int cedarGetHeight(CEDAR_JPEG_HANDLE);
+
+DLL_EXPORT int cedarEncJpeg(void *in_mem, int in_stride, int in_width, int in_height, 
+			    int *out_width, int *out_height, int quality, char *out_filename);
 #if __cplusplus
 }
 #endif
