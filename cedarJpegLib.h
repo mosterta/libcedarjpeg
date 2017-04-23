@@ -27,6 +27,13 @@ DLL_EXPORT int cedarGetHeight(CEDAR_JPEG_HANDLE);
 
 DLL_EXPORT int cedarEncJpeg(void *in_mem, int in_stride, int in_width, int in_height, 
 			    int *out_width, int *out_height, int quality, char *out_filename);
+
+
+typedef int (*cedarEncJpegWriteCB)(void *buffer, size_t len, void *opaque);
+
+DLL_EXPORT int cedarEncJpegWrite(void *in_mem, int in_stride, int in_width, int in_height, 
+			    int *out_width, int *out_height, int quality, 
+			    cedarEncJpegWriteCB funcWrite, void *opaque);
 #if __cplusplus
 }
 #endif

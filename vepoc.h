@@ -22,6 +22,7 @@
 
 #include <stdint.h>
 #include "ve.h"
+#include "cedarJpegLib.h"
 
 typedef enum {
 	VEISP_COLOR_FORMAT_NV12 = 0,
@@ -46,7 +47,7 @@ void vejpeg_header_destroy(void);
 void vejpeg_write_SOF0(void);
 void vejpeg_write_SOS(void);
 void vejpeg_write_quantization(void);
-void vejpeg_write_file(const char *filename, uint8_t *buffer, uint32_t length);
+void vejpeg_write_file(cedarEncJpegWriteCB funcWrite, void* opaque, uint8_t *buffer, uint32_t length);
 
 void veisp_set_buffers(CEDARV_MEMORY Y, CEDARV_MEMORY C);
 void veisp_set_picture_size(uint32_t w, uint32_t h, uint32_t stride);

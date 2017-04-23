@@ -25,6 +25,8 @@
 #include <libyuv.h>
 #include <assert.h>
 
+#include "cedarJpegLib.h"
+
 #define min(A,B) ((A) < (B) ? (A) : (B))
 #if 0
 int main(int argc, char *argv[])
@@ -72,8 +74,25 @@ int main(int argc, char *argv[])
 }
 #endif
 
+static int cedarWriteDataInternal (void *buf, size_t len, void *opaque)
+{
+  return fwrite(buf, len, 1, (FILE*)opaque);
+}
 int cedarEncJpeg(void *in_mem, int in_stride, int in_width, int in_height, 
 		 int *out_width, int *out_height, int quality, char *out_filename)
+{
+
+  int status;
+  
+  FILE *fp;
+  fp = fopen(out_filename, "wb");
+  status = cedarEncJpegWrite(in_mem, in_stride, in_width, in_height,
+			     out_width, out_height, quality, cedarWriteDataInternal, (void*)fp);
+  fclose(fp);
+  return status;
+}
+int cedarEncJpegWrite(void *in_mem, int in_stride, int in_width, int in_height, 
+		 int *out_width, int *out_height, int quality, cedarEncJpegWriteCB funcWrite, void *opaque)
 {
 	uint32_t w = 0;
 	uint32_t h = 0;
@@ -93,7 +112,11 @@ int cedarEncJpeg(void *in_mem, int in_stride, int in_width, int in_height,
 	h = (in_height + 15) & ~15;
 	*out_width = w;
 	*out_height = h;
-	int bufsize = in_stride * in_height * 4;
+	int bufsize = 0;
+	if(in_stride != 0)
+	  bufsize = in_stride * in_height;
+	else
+	  bufsize = in_width * in_height * 4;
 	Y = cedarv_malloc(bufsize);
 	if (!cedarv_isValid(Y))
 	  return -1;
@@ -165,7 +188,7 @@ int cedarEncJpeg(void *in_mem, int in_stride, int in_width, int in_height,
 
 	/* flush for A20 */
 	cedarv_flush_cache(J, Jsize);
-	vejpeg_write_file(out_filename, cedarv_getPointer(J), Jwritten);
+	vejpeg_write_file(funcWrite, opaque, cedarv_getPointer(J), Jwritten);
 
 	cedarv_free(J);
 	cedarv_free(convY);

@@ -126,18 +126,14 @@ void vejpeg_write_quantization(void)
 	veavc_jpeg_quantization(qtableY, qtableC, DCTSIZE2);
 }
 
-void vejpeg_write_file(const char *filename, uint8_t *buffer, uint32_t length)
+void vejpeg_write_file(cedarEncJpegWriteCB funcWrite, void *opaque, uint8_t *buffer, uint32_t length)
 {
-	FILE *fp;
 	if(outlen > 2)
 	{
-		fp = fopen(filename, "w");
-		/* don't write EOI */
-		fwrite(outbuf, outlen-2, 1, fp);
-		fwrite(buffer, length, 1, fp);
+		funcWrite(outbuf, outlen-2, opaque);
+		funcWrite(buffer, length, opaque);
 		/* write EOI */
-		fwrite(outbuf+outlen-2, 2, 1, fp);
-		fclose(fp);
+		funcWrite(outbuf+outlen-2, 2, opaque);
 	}
 }
 
