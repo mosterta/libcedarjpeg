@@ -37,6 +37,19 @@ install: $(TARGET_SO)
 	cp $(TARGET_SO) /usr/lib
 	@echo "installing cedarJpegLib.h to /usr/include"
 	cp cedarJpegLib.h /usr/include
+	pcfile=$(mktemp)
+	echo 'prefix=/usr' > $pcfile
+	echo "exec_prefix=\$${prefix}" >> $pcfile
+	echo "libdir=\$${prefix}/lib" >> $pcfile
+	echo "includedir=\$${prefix}/include" >> $pcfile
+	echo "" >> $pcfile
+	echo "Name: cedarjpeg" >> $pcfile
+	echo "Description: JPEG decoder library using the Allwinner Jpeg Hardware decoder" >>  $pcfile
+	echo "Version: 1.0.0" >> $pcfile
+	echo "Cflags: -I\$${includedir}" >> $pcfile
+	echo "Libs: -L\$${libdir} -lcedarjpeg" >> $pcfile
+	cp $pcfile /usr/lib/pkgconfig/cedarjpeg.pc
+	rm $pcfile
 
 uninstall:
 	@echo "removing $(TARGET_SO)"
