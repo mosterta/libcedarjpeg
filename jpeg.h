@@ -23,7 +23,7 @@
 #ifndef __JPEG_H__
 #define __JPEG_H__
 
-#include <EGL/eglplatform_fb.h>
+#include "eglplatform_fb.h"
 #include <EGL/fbdev_window.h>  
 #include "cedarJpegLib.h"
 #include "ve.h"
@@ -75,6 +75,7 @@ struct cedarJpeg_handle
 	fbdev_pixmap pixmap;
 	PFNEGLCREATEIMAGEKHRPROC peglCreateImageKHR;
 	PFNEGLDESTROYIMAGEKHRPROC peglDestroyImageKHR;
+	int cedar_engine_version;	
 };
 
 int parse_jpeg(struct cedarJpeg_handle *jpeg, const uint8_t *data, const int len);
