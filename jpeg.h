@@ -24,7 +24,7 @@
 #define __JPEG_H__
 
 #include "eglplatform_fb.h"
-#include <EGL/fbdev_window.h>  
+#include "fbdev_window.h"
 #include "cedarJpegLib.h"
 #include "ve.h"
 

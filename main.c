@@ -44,7 +44,7 @@
 #include <libyuv.h>
 
 #include "eglplatform_fb.h"
-#include <EGL/fbdev_window.h>  
+#include "fbdev_window.h" 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
