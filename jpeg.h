@@ -26,7 +26,7 @@
 #include "eglplatform_fb.h"
 #include "fbdev_window.h"
 #include "cedarJpegLib.h"
-#include "ve.h"
+#include <ve.h>
 
 struct jpeg_t
 {
