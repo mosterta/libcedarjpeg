@@ -39,10 +39,11 @@
 #include <sys/mman.h>
 #include <assert.h>
 #include "cedarJpegLib.h"
-#include "ve.h"
+#include <ve.h>
 #include "jpeg.h"
+#include <libyuv.h>
 
-#include <EGL/eglplatform_fb.h>
+#include "eglplatform_fb.h"
 #include <EGL/fbdev_window.h>  
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
@@ -58,11 +59,10 @@
 #define COLOR_YUV420 0
 #define COLOR_YUV422 2
 
-static void createTexture2D(fbdev_pixmap *pm, int width, int height, CEDARV_MEMORY mem);
 static int TestEGLError(const char* pszLocation);
 static int TestGLError(const char* pszLocation);
 
-static int vedisp_convertMb2Yuv420(struct cedarJpeg_handle *jpeg, int width, int height, int color_format, 
+static int vedisp_convertMb2ARGB(struct cedarJpeg_handle *jpeg, int width, int height, int color_format, 
                             CEDARV_MEMORY l, CEDARV_MEMORY c, CEDARV_MEMORY outrgb);
 static void vedisp_init(struct cedarJpeg_handle *jpeg);
 static void vedisp_close(struct cedarJpeg_handle *jpeg);
@@ -154,6 +154,7 @@ static void set_size(struct jpeg_t *jpeg, void *regs)
 
 static void decode_jpeg(struct cedarJpeg_handle *handle, int width, int height)
 {
+	int status;
 	if (!cedarv_open())
 		err(EXIT_FAILURE, "Can't open VE");
 
@@ -178,6 +179,12 @@ static void decode_jpeg(struct cedarJpeg_handle *handle, int width, int height)
 	writel(cedarv_virt2phys(handle->luma_output), cedarv_regs + CEDARV_MPEG_ROT_LUMA);
 	writel(cedarv_virt2phys(handle->chroma_output), cedarv_regs + CEDARV_MPEG_ROT_CHROMA);
 
+	if (cedarv_get_version() >= 0x1680)
+	{
+	    writel(OUTPUT_FORMAT_NV12, cedarv_regs + CEDARV_OUTPUT_FORMAT);
+	    writel((0x1 << 30) | (0x1 << 28) , cedarv_regs + CEDARV_EXTRA_OUT_FMT_OFFSET);
+	}
+
 	// set size
 	set_size(&handle->jpeg, cedarv_regs);
 
@@ -197,7 +204,7 @@ static void decode_jpeg(struct cedarJpeg_handle *handle, int width, int height)
 	writel(handle->data_len * 8, cedarv_regs + CEDARV_MPEG_VLD_LEN);
 
 	// set input buffer
-    writel(cedarv_virt2phys(input_buffer) | 0x70000000, cedarv_regs + CEDARV_MPEG_VLD_ADDR);
+    	writel(cedarv_virt2phys(input_buffer) | 0x70000000, cedarv_regs + CEDARV_MPEG_VLD_ADDR);
 
 	// set Quantisation Table
 	set_quantization_tables(&handle->jpeg, cedarv_regs);
@@ -210,8 +217,10 @@ static void decode_jpeg(struct cedarJpeg_handle *handle, int width, int height)
 	writeb(0x0e, cedarv_regs + CEDARV_MPEG_TRIGGER);
 
 	// wait for interrupt
-	cedarv_wait(1);
-
+	status = cedarv_wait(1);
+	if(status < 0)
+	  printf("timeout waiting for hardware decode process to finish");
+	  
 	// clean interrupt flag (??)
 	writel(0x0000c00f, cedarv_regs + CEDARV_MPEG_STATUS);
 
@@ -271,6 +280,10 @@ CEDAR_JPEG_HANDLE cedarInitJpeg(EGLDisplay disp)
 			printf("eglCreateImageKHR not found!\n");
 		}
 	}
+	cedarv_open();
+	jpeg->cedar_engine_version = cedarv_get_version();
+	cedarv_close();
+	
 	return (CEDAR_JPEG_HANDLE)jpeg;
 }
 
@@ -344,7 +357,19 @@ int cedarDecodeJpeg(CEDAR_JPEG_HANDLE handle, int width, int height)
 	assert(cedarv_isValid(jpeg->decodedPic));
 	cedarv_flush_cache(jpeg->decodedPic, size);
 	decode_jpeg(jpeg, width, height);
-    
+
+#if 0
+	char fname[200];
+	sprintf(fname, "/tmp/jpeg_dec.0x%x.l", cedarv_get_version());
+	FILE *fp = fopen(fname, "wb");
+	fwrite(cedarv_getPointer(jpeg->luma_output), 1, size, fp);
+	fclose(fp);
+	sprintf(fname, "/tmp/jpeg_dec.0x%x.c", cedarv_get_version());
+	fp = fopen(fname, "wb");
+	fwrite(cedarv_getPointer(jpeg->chroma_output), 1, size, fp);
+	fclose(fp);
+#endif
+
     cedarv_freeEngine();
     
 	vedisp_init(jpeg);
@@ -361,25 +386,37 @@ int cedarDecodeJpeg(CEDAR_JPEG_HANDLE handle, int width, int height)
 		color = COLOR_YUV420;
 		break;
 	}
-	status = vedisp_convertMb2Yuv420(jpeg, width, height, color, jpeg->luma_output, 
-				jpeg->chroma_output, jpeg->decodedPic);
-    if(status == 0)
-    {
-      void *y = malloc(cedarv_getSize(jpeg->luma_output));
-      void *c = malloc(cedarv_getSize(jpeg->chroma_output));
-      if(y && c)
-      {
-        cedarv_sw_convertMb32420ToNv21Y(cedarv_getPointer(jpeg->luma_output), y, width, height);
-        cedarv_sw_convertMb32420ToNv21C(cedarv_getPointer(jpeg->chroma_output), y, width, height);
-      }
-      else
-      {
-        if(y)
-          free(y);
-        if(c)
-          free(c);
-      }
-    }
+	
+	status = 0;
+	if (jpeg->cedar_engine_version < 0x1680)
+	{
+	  status = vedisp_convertMb2ARGB(jpeg, width, height, color, jpeg->luma_output, 
+				  jpeg->chroma_output, jpeg->decodedPic);
+	}
+	if(status == 0)
+	{
+	  void *y = malloc(cedarv_getSize(jpeg->luma_output));
+	  void *c = malloc(cedarv_getSize(jpeg->chroma_output));
+	  if(y && c)
+	  {
+	    cedarv_sw_convertMb32420ToNv21Y(cedarv_getPointer(jpeg->luma_output), y, width, height);
+	    cedarv_sw_convertMb32420ToNv21C(cedarv_getPointer(jpeg->chroma_output), y, width, height);
+
+	    int status = NV21ToARGB(y, jpeg->jpeg.width,
+			    c, jpeg->jpeg.width,
+			    cedarv_getPointer(jpeg->decodedPic), jpeg->jpeg.width,
+			    jpeg->jpeg.width, jpeg->jpeg.height);
+	    free(y);
+	    free(c);
+	  }
+	  else
+	  {
+	    if(y)
+	      free(y);
+	    if(c)
+	      free(c);
+	  }
+	}
     
 	vedisp_close(jpeg);
 	cedarv_free(jpeg->luma_output);
@@ -476,7 +513,7 @@ static void vedisp_close(struct cedarJpeg_handle *jpeg)
    jpeg->disp_fd = -1;
 }
 
-static int vedisp_convertMb2Yuv420(struct cedarJpeg_handle *jpeg, int width, int height, int color_format, 
+static int vedisp_convertMb2ARGB(struct cedarJpeg_handle *jpeg, int width, int height, int color_format, 
                             CEDARV_MEMORY l, CEDARV_MEMORY c, CEDARV_MEMORY outrgb)
 {
   int status = 1; 
