@@ -23,8 +23,8 @@ add_subdirectory("src")
 
 # pkg-config stuff
 configure_file(
-	"${CMAKE_CURRENT_SOURCE_DIR}/libcedarjpeg.pc.in"
-	"${CMAKE_CURRENT_BINARY_DIR}/libcedarjpeg.pc"
+	"${CMAKE_CURRENT_SOURCE_DIR}/libcedarJpeg.pc.in"
+	"${CMAKE_CURRENT_BINARY_DIR}/libcedarJpeg.pc"
 	@ONLY
 )
 install(FILES
