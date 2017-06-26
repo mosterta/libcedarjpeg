@@ -1,0 +1,9 @@
+libdir=@CMAKE_INSTALL_FULL_LIBDIR@
+includedir=@CMAKE_INSTALL_FULL_INCLUDEDIR@
+
+Name: cedarjpeg
+Description: JPEG decoder library using the Allwinner Jpeg Hardware decoder
+Version: 1.0.0
+Cflags: -I\$${includedir}
+Libs: -L\$${libdir} -lcedarjpeg
+
