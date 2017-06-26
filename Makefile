@@ -33,12 +33,12 @@ $(TARGET_SO): $(OBJ_SO)
 	$(Q)g++ $(LDFLAGS_SO) $(OBJ_SO) $(LIBS) -o $@
 
 install: $(TARGET_SO) 
-	@echo "installing $(TARGET_SO) to /usr/lib"
-	cp $(TARGET_SO) /usr/lib
-	@echo "installing cedarJpegLib.h to /usr/include"
-	cp cedarJpegLib.h /usr/include
+	@echo "installing $(TARGET_SO) to ${DESTDIR}/usr/lib"
+	install -D $(TARGET_SO) i${DESTDIR}/usr/lib
+	@echo "installing cedarJpegLib.h to ${DESTDIR}/usr/include"
+	install -D cedarJpegLib.h ${DESTDIR}/usr/include
 	pcfile=$(mktemp)
-	echo 'prefix=/usr' > $pcfile
+	echo 'prefix=${DESTDIR}/usr' > $pcfile
 	echo "exec_prefix=\$${prefix}" >> $pcfile
 	echo "libdir=\$${prefix}/lib" >> $pcfile
 	echo "includedir=\$${prefix}/include" >> $pcfile
@@ -48,8 +48,9 @@ install: $(TARGET_SO)
 	echo "Version: 1.0.0" >> $pcfile
 	echo "Cflags: -I\$${includedir}" >> $pcfile
 	echo "Libs: -L\$${libdir} -lcedarjpeg" >> $pcfile
-	cp $pcfile /usr/lib/pkgconfig/cedarjpeg.pc
+	install -D $pcfile ${DESTDIR}/usr/lib/pkgconfig/cedarjpeg.pc
 	rm $pcfile
+	/sbin/ldconfig
 
 uninstall:
 	@echo "removing $(TARGET_SO)"
@@ -59,16 +60,16 @@ uninstall:
 
 .PHONY: clean
 clean:
-	@echo "RM *.o"
-	$(Q)rm -f *.o
-	@echo "RM *.d"
-	$(Q)rm -f *.d
+	@echo "RM src/*.o"
+	$(Q)rm -f src/*.o
+	@echo "RM src/*.d"
+	$(Q)rm -f src/*.d
 	@echo "RM $(TARGET)"
 	$(Q)rm -f $(TARGET)
-	@echo "RM *.lo"
-	$(Q)rm -f *.lo
-	@echo "RM *.d"
-	$(Q)rm -f *.d
+	@echo "RM src/*.lo"
+	$(Q)rm -f src/*.lo
+	@echo "RM src/*.d"
+	$(Q)rm -f src/*.d
 	@echo "RM $(TARGET_SO)"
 	$(Q)rm -f $(TARGET_SO)
 
