@@ -20,13 +20,29 @@ set_target_properties(${PROJECT_NAME}-shared PROPERTIES
 	VERSION		${PROJECT_VERSION}
 )
 set(LIBS  -lpthread -lEGL -lGLESv2 -lyuv)
+set(COMMON_COMPILE_DEFINITIONS "-fPIC -Wall -Wextra -DUSE_UMP")
 
 target_link_libraries(${PROJECT_NAME}-shared ${LIBS})
+
+set(${PROJECT_NAME}-shared-CC "${COMMON_COMPILE_DEFINITIONS} -fvisibility=hidden")
+
+set_target_properties(${PROJECT_NAME}-shared PROPERTIES COMPILE_FLAGS "${${PROJECT_NAME}-shared-CC}")
+
+add_executable(${PROJECT_NAME}-test ${LIBCEDARJPEG_SRC})
+set_target_properties(${PROJECT_NAME}-test PROPERTIES
+	OUTPUT_NAME	${PROJECT_NAME}-test
+)
+
+set(DEFINITIONS-test-CC "${COMMON_COMPILE_DEFINITIONS} -DINCLUDE_MAIN")
+
+target_link_libraries(${PROJECT_NAME}-test ${LIBS})
+set_target_properties(${PROJECT_NAME}-test PROPERTIES COMPILE_FLAGS "${DEFINITIONS-test-CC}")
 
 find_package(JPEG REQUIRED)
 if(JPEG_FOUND)
   include_directories(${JPEG_INCLUDE_DIRS})
   target_link_libraries(${PROJECT_NAME}-shared ${JPEG_LIBRARIES})
+  target_link_libraries(${PROJECT_NAME}-test ${JPEG_LIBRARIES})
 endif()
 
 find_package(PkgConfig REQUIRED)
@@ -46,6 +62,7 @@ mark_as_advanced(CEDAR_ACCESS_INCLUDE_DIRS CEDAR_ACCESS_LIBRARIES)
 if(CEDAR_ACCESS_FOUND)
   include_directories(${CEDAR_ACCESS_INCLUDE_DIRS})
   target_link_libraries(${PROJECT_NAME}-shared ${CEDAR_ACCESS_LIBRARIES})
+  target_link_libraries(${PROJECT_NAME}-test ${CEDAR_ACCESS_LIBRARIES})
 endif()
 
 pkg_check_modules(PC_UMP REQUIRED libump)
@@ -63,6 +80,7 @@ mark_as_advanced(UMP_INCLUDE_DIRS UMP_LIBRARIES)
 if(UMP_FOUND)
   include_directories(${UMP_INCLUDE_DIRS})
   target_link_libraries(${PROJECT_NAME}-shared ${UMP_LIBRARIES})
+  target_link_libraries(${PROJECT_NAME}-test ${UMP_LIBRARIES})
 endif()
 
 # install binary
