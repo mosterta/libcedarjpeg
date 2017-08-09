@@ -400,7 +400,7 @@ int cedarDecodeJpeg(CEDAR_JPEG_HANDLE handle, int width, int height)
 	  if(y && c)
 	  {
 	    cedarv_sw_convertMb32420ToNv21Y(cedarv_getPointer(jpeg->luma_output), y, width, height);
-	    cedarv_sw_convertMb32420ToNv21C(cedarv_getPointer(jpeg->chroma_output), y, width, height);
+	    cedarv_sw_convertMb32420ToNv21C(cedarv_getPointer(jpeg->chroma_output), c, width, height);
 
 	    int status = NV21ToARGB(y, jpeg->jpeg.width,
 			    c, jpeg->jpeg.width,
@@ -543,7 +543,7 @@ static int vedisp_convertMb2ARGB(struct cedarJpeg_handle *jpeg, int width, int h
    scaler_para.input_fb.seq = DISP_SEQ_UVUV;
    scaler_para.input_fb.mode = DISP_MOD_MB_UV_COMBINED;
    scaler_para.input_fb.br_swap = 0;
-   scaler_para.input_fb.cs_mode = DISP_BT601;
+   scaler_para.input_fb.cs_mode = DISP_YCC;
    scaler_para.source_regn.x = 0;
    scaler_para.source_regn.y = 0;
    scaler_para.source_regn.width = jpeg->jpeg.width;
